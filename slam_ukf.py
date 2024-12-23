@@ -7,14 +7,14 @@ from filterpy.kalman import MerweScaledSigmaPoints
 class SLAM:
     def __init__(self):
         self.landmarks = []
-        self.state = np.array([0., 0., 0.])
+        self.corners = []
         self.Q = np.diag([0.1, 0.1, np.radians(1)])**2  # Base process noise for x, y, theta
 
         self.ukf = UKF(
             dim_x=3, dim_z=2, dt=1, hx=self.hx, fx=self.fx, 
             points=MerweScaledSigmaPoints(n=3, alpha=0.1, beta=2.0, kappa=0.0)
         )
-        self.ukf.x = self.state
+        self.ukf.x = np.array([0., 0., 0.])
         self.ukf.P = np.eye(3) * 0.2
         self.ukf.Q = self.Q
 
@@ -29,7 +29,7 @@ class SLAM:
         
         x_new = x_robot + delta_x * np.cos(theta_robot) - delta_y * np.sin(theta_robot)
         y_new = y_robot + delta_x * np.sin(theta_robot) + delta_y * np.cos(theta_robot)
-        theta_new = theta_robot + delta_theta
+        theta_new = theta_robot + delta_theta 
 
         # theta_new = np.arctan2(np.sin(theta_new), np.cos(theta_new))
 
@@ -37,7 +37,7 @@ class SLAM:
         landmarks_flat = np.array(self.landmarks).flatten()
         updated_state = np.hstack([pose, landmarks_flat])
 
-        print("updated state", updated_state)
+        # print("updated state", updated_state)
         
         return updated_state
     
@@ -60,10 +60,10 @@ class SLAM:
         self.landmarks.append(new_landmark)
 
         # Augment the state vector with the new landmark
-        self.state = np.hstack([self.state, new_landmark])
+        state = np.hstack([self.ukf.x, new_landmark])
 
         # Increase UKF dimensions
-        dim_x = len(self.state)  # Update state dimension
+        dim_x = len(state)  # Update state dimension
         dim_z = len(self.landmarks) * 2  # Each landmark contributes (range, bearing)
 
         # Expand the process covariance matrix
@@ -83,7 +83,7 @@ class SLAM:
             fx=self.fx,
             points=MerweScaledSigmaPoints(n=dim_x, alpha=0.1, beta=2.0, kappa=0.0),
         )
-        self.ukf.x = self.state
+        self.ukf.x = state
         self.ukf.P = P_new
         self.ukf.Q = Q_new
 
